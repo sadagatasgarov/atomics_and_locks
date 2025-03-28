@@ -7,7 +7,7 @@ static LOCKED: AtomicBool = AtomicBool::new(false);
 
 #[allow(static_mut_refs)]
 fn f() {
-if LOCKED.swap(true, Acquire) == false {
+if LOCKED.compare_exchange(false, true, Acquire, Relaxed).is_ok() {
 // Safety: We hold the exclusive lock, so nothing else is accessing DATA.
 unsafe { DATA.push('!') };
 LOCKED.store(false, Release);
