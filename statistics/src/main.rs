@@ -12,7 +12,7 @@ fn main() {
     let max_time = &AtomicU64::new(0);
 
     thread::scope(|s| {
-
+        
         for t in 0..4 {
             s.spawn(move || {
                 for i in 0..25 {

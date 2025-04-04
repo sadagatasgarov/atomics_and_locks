@@ -35,8 +35,10 @@ fn main() {
         READY.store(true, Release);
     });
 
+
+    
     while !READY.load(Acquire) {
-        thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(1));
         println!("waiting...");
     }
 
