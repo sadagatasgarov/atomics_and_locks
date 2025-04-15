@@ -1,7 +1,7 @@
 use std::cell::UnsafeCell;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::{Acquire, Release};
-
+use std::thread;
 pub struct SpinLock<T> {
     locked: AtomicBool,
     value: UnsafeCell<T>,
@@ -33,4 +33,42 @@ pub struct Guard<'a, T> {
     lock: &'a SpinLock<T>,
 }
 
-fn main() {}
+use std::ops::{Deref, DerefMut};
+
+impl<T> Deref for Guard<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        // Təhlükəsizlik: Guard mövcuddursa, deməli `lock` eksklüziv şəkildə ələ keçirilib.
+        unsafe { &*self.lock.value.get() }
+    }
+}
+
+impl<T> DerefMut for Guard<'_, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        // Təhlükəsizlik: Guard mövcuddursa, deməli `lock` eksklüziv şəkildə ələ keçirilib.
+        unsafe { &mut *self.lock.value.get() }
+    }
+}
+
+impl<T> Drop for Guard<'_, T> {
+    fn drop(&mut self) {
+        self.lock.locked.store(false, Release);
+    }
+}
+
+fn main() {
+    let x = SpinLock::new(Vec::new());
+
+    thread::scope(|s| {
+        s.spawn(|| x.lock().push(1));
+        s.spawn(|| {
+            let mut g = x.lock();
+            g.push(2);
+            g.push(2);
+        });
+    });
+
+    let g = x.lock();
+    assert!(g.as_slice() == [1, 2, 2] || g.as_slice() == [2, 2, 1]);
+}
